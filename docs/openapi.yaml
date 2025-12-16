@@ -1,0 +1,311 @@
+openapi: 3.0.0
+info:
+  title: Price Compare API
+  version: 1.0.0
+  description: |
+    価格比較WebアプリケーションのAPI仕様書
+    
+    ⚠️ 重要: このAPIはコンプライアンスを厳守して実装されています。
+    - 公開情報のみを取得
+    - robots.txtを尊重
+    - レートリミット実装
+    - リアルタイム取得は行わず、キャッシュ/DBを使用
+
+servers:
+  - url: http://localhost:8080
+    description: ローカル開発環境
+
+paths:
+  /health:
+    get:
+      summary: ヘルスチェック
+      operationId: health
+      tags:
+        - Health
+      responses:
+        '200':
+          description: サービスは正常に動作しています
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /api/search:
+    get:
+      summary: 商品検索
+      operationId: searchProducts
+      tags:
+        - Products
+      parameters:
+        - name: query
+          in: query
+          required: true
+          description: 検索キーワード
+          schema:
+            type: string
+            example: headphones
+      responses:
+        '200':
+          description: 検索結果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  products:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductWithMinPrice'
+        '400':
+          description: リクエストが不正
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/products/{id}:
+    get:
+      summary: 商品詳細取得
+      operationId: getProduct
+      tags:
+        - Products
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 商品ID (UUID)
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 商品情報
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          description: 商品が見つかりません
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/products/{id}/offers:
+    get:
+      summary: 商品のオファー一覧取得
+      operationId: getProductOffers
+      tags:
+        - Products
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 商品ID (UUID)
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: オファー一覧（価格の安い順）
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  offers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Offer'
+
+  /api/admin/jobs/fetch_prices:
+    post:
+      summary: 価格更新ジョブの実行
+      operationId: fetchPrices
+      tags:
+        - Admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - source
+              properties:
+                source:
+                  type: string
+                  enum: [demo, public_html, all]
+                  description: プロバイダの種類
+                  example: all
+      responses:
+        '200':
+          description: ジョブがキューに追加されました
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id:
+                    type: string
+                    example: "123e4567-e89b-12d3-a456-426614174000"
+                  status:
+                    type: string
+                    example: enqueued
+                  source:
+                    type: string
+                    example: all
+        '400':
+          description: リクエストが不正
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/image-search:
+    post:
+      summary: 画像検索（スタブ実装）
+      operationId: imageSearch
+      tags:
+        - Products
+      description: |
+        現在はスタブ実装です。実装予定です。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  format: base64
+                  description: Base64エンコードされた画像データ
+      responses:
+        '200':
+          description: スタブレスポンス
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Image search is not yet implemented"
+                  products:
+                    type: array
+                    items: {}
+
+components:
+  schemas:
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        title:
+          type: string
+          example: "Wireless Bluetooth Headphones"
+        brand:
+          type: string
+          nullable: true
+          example: "AudioTech"
+        model:
+          type: string
+          nullable: true
+          example: "ATH-500BT"
+        image_url:
+          type: string
+          format: uri
+          nullable: true
+          example: "https://example.com/images/headphones.jpg"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ProductWithMinPrice:
+      allOf:
+        - $ref: '#/components/schemas/Product'
+        - type: object
+          properties:
+            min_price_cents:
+              type: integer
+              nullable: true
+              description: 最安値（セント単位）
+              example: 5998
+
+    Offer:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        product_id:
+          type: string
+          format: uuid
+        source:
+          type: string
+          example: demo
+          description: プロバイダの種類
+        seller:
+          type: string
+          example: "DemoSeller A"
+        price_amount:
+          type: integer
+          description: 商品価格（セント単位）
+          example: 4999
+        currency:
+          type: string
+          example: USD
+        shipping_to_us_amount:
+          type: integer
+          description: US送料（セント単位）
+          example: 999
+        total_to_us_amount:
+          type: integer
+          description: 合計額（セント単位）
+          example: 5998
+        est_delivery_days_min:
+          type: integer
+          nullable: true
+          description: 推定到着日数（最小）
+          example: 3
+        est_delivery_days_max:
+          type: integer
+          nullable: true
+          description: 推定到着日数（最大）
+          example: 5
+        in_stock:
+          type: boolean
+          example: true
+        url:
+          type: string
+          format: uri
+          nullable: true
+          example: "https://example.com/product"
+        fetched_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Invalid request"
+

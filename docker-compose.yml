@@ -1,0 +1,91 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pricecompare-postgres
+    environment:
+      POSTGRES_USER: pricecompare
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: pricecompare
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pricecompare"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: pricecompare-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: pricecompare-api
+    environment:
+      API_PORT: 8080
+      API_HOST: 0.0.0.0
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: pricecompare
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: pricecompare
+      POSTGRES_SSLMODE: disable
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      ASYNQ_REDIS_ADDR: redis:6379
+      US_SHIP_MODE: TABLE
+      SHIPPING_FEE_PERCENT: 3.0
+      FX_USDJPY: 150.0
+      USER_AGENT: PriceCompareBot/1.0
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/api:/app
+      - ./samples:/app/samples:ro
+    command: >
+      sh -c "
+        echo 'Waiting for database...' &&
+        sleep 5 &&
+        echo 'Running migrations...' &&
+        cd /app && go run cmd/migrate/main.go up &&
+        echo 'Starting server...' &&
+        go run cmd/server/main.go
+      "
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: pricecompare-web
+    environment:
+      NEXT_PUBLIC_API_URL: http://api:8080
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+
+volumes:
+  postgres_data:
+  redis_data:
+
