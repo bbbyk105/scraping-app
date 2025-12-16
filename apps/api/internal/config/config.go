@@ -61,9 +61,9 @@ func (c *Config) RedisAddr() string {
 
 func (c *Config) ShippingConfig() ShippingConfig {
 	return ShippingConfig{
-		Mode:      c.ShippingMode,
+		Mode:       c.ShippingMode,
 		FeePercent: c.ShippingFeePercent,
-		FXUSDJPY:  c.FXUSDJPY,
+		FXUSDJPY:   c.FXUSDJPY,
 	}
 }
 

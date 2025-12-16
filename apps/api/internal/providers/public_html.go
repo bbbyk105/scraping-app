@@ -3,7 +3,6 @@ package providers
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -242,16 +241,5 @@ func extractBrand(title string) *string {
 		}
 	}
 	return nil
-}
-
-func stringPtr(s string) *string {
-	if s == "" {
-		return nil
-	}
-	return &s
-}
-
-func intPtr(i int) *int {
-	return &i
 }
 

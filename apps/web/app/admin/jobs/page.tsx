@@ -31,27 +31,27 @@ export default function AdminJobsPage() {
   }
 
   return (
-    <main className="min-h-screen p-8">
+    <main className="min-h-screen p-8 bg-white">
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
-          <Link href="/" className="text-blue-600 hover:underline">
+          <Link href="/" className="text-blue-600 hover:underline text-base font-medium">
             ← ホームに戻る
           </Link>
         </div>
 
-        <h1 className="text-4xl font-bold mb-8">価格更新ジョブ管理</h1>
+        <h1 className="text-4xl font-bold mb-8 text-gray-900">価格更新ジョブ管理</h1>
 
         <form onSubmit={handleFetchPrices} className="mb-8">
           <div className="space-y-4">
             <div>
-              <label htmlFor="source" className="block text-sm font-medium mb-2">
+              <label htmlFor="source" className="block text-base font-semibold mb-2 text-gray-900">
                 ソースを選択
               </label>
               <select
                 id="source"
                 value={source}
                 onChange={(e) => setSource(e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg"
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg text-base focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
               >
                 <option value="all">すべて</option>
                 <option value="demo">Demo プロバイダ</option>
@@ -62,7 +62,7 @@ export default function AdminJobsPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium text-base transition-colors"
             >
               {loading ? '実行中...' : '価格更新ジョブを実行'}
             </button>
@@ -73,17 +73,17 @@ export default function AdminJobsPage() {
           <div
             className={`p-4 rounded-lg ${
               message.type === 'success'
-                ? 'bg-green-100 border border-green-400 text-green-700'
-                : 'bg-red-100 border border-red-400 text-red-700'
+                ? 'bg-green-50 border-2 border-green-300 text-green-800'
+                : 'bg-red-50 border-2 border-red-300 text-red-800'
             }`}
           >
-            {message.text}
+            <p className="font-medium">{message.text}</p>
           </div>
         )}
 
-        <div className="mt-8 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
-          <h2 className="text-xl font-semibold mb-4">説明</h2>
-          <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+        <div className="mt-8 p-6 bg-gray-50 border-2 border-gray-200 rounded-lg">
+          <h2 className="text-xl font-semibold mb-4 text-gray-900">説明</h2>
+          <ul className="space-y-2 text-base text-gray-700">
             <li>
               <strong>Demo プロバイダ:</strong> モックデータを使用してテストします
             </li>

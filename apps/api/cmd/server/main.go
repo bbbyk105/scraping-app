@@ -6,8 +6,8 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+	fiberlogger "github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/hibiken/asynq"
 	"github.com/joho/godotenv"
 	"go.uber.org/zap"
@@ -63,7 +63,12 @@ func main() {
 	providerManager.Register("public_html", providers.NewPublicHTMLProvider(cfg.UserAgent))
 
 	// Initialize shipping calculator
-	shippingCalc := shipping.NewCalculator(cfg.ShippingConfig())
+	shippingConfig := cfg.ShippingConfig()
+	shippingCalc := shipping.NewCalculator(shipping.Config{
+		Mode:       shippingConfig.Mode,
+		FeePercent: shippingConfig.FeePercent,
+		FXUSDJPY:   shippingConfig.FXUSDJPY,
+	})
 
 	// Initialize job processor
 	jobProcessor := jobs.NewProcessor(productRepo, offerRepo, providerManager, shippingCalc, logger)
@@ -94,7 +99,7 @@ func main() {
 
 	// Middleware
 	app.Use(recover.New())
-	app.Use(logger.New())
+	app.Use(fiberlogger.New())
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: "*",
 		AllowMethods: "GET,POST,OPTIONS",
@@ -102,6 +107,20 @@ func main() {
 	}))
 
 	// Routes
+	app.Get("/", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{
+			"name":    "Price Compare API",
+			"version": "1.0.0",
+			"status":  "running",
+			"endpoints": fiber.Map{
+				"health":  "/health",
+				"search":  "/api/search?query=<keyword>",
+				"product": "/api/products/:id",
+				"offers":  "/api/products/:id/offers",
+				"admin":   "/api/admin/jobs/fetch_prices",
+			},
+		})
+	})
 	app.Get("/health", h.Health)
 
 	api := app.Group("/api")

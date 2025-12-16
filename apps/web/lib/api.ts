@@ -1,6 +1,11 @@
 import { z } from 'zod'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
+// API URL: ブラウザからアクセスするため、常にlocalhostを使用
+// 環境変数が api:8080 になっている場合は無視して、localhostを使用
+const envApiUrl = process.env.NEXT_PUBLIC_API_URL
+const API_URL = (envApiUrl && !envApiUrl.includes('api:')) 
+  ? envApiUrl 
+  : 'http://localhost:8080'
 
 // Schemas
 export const ProductSchema = z.object({
@@ -41,12 +46,27 @@ export type ProductWithMinPrice = z.infer<typeof ProductWithMinPriceSchema>
 
 // API functions
 export async function searchProducts(query: string): Promise<ProductWithMinPrice[]> {
-  const res = await fetch(`${API_URL}/api/search?query=${encodeURIComponent(query)}`)
-  if (!res.ok) {
-    throw new Error('Failed to search products')
+  try {
+    const res = await fetch(`${API_URL}/api/search?query=${encodeURIComponent(query)}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+    
+    if (!res.ok) {
+      const errorText = await res.text()
+      throw new Error(`APIエラー (${res.status}): ${errorText || 'Failed to search products'}`)
+    }
+    
+    const data = await res.json()
+    return z.object({ products: z.array(ProductWithMinPriceSchema) }).parse(data).products
+  } catch (err) {
+    if (err instanceof TypeError) {
+      throw new Error(`ネットワークエラー: ${API_URL} に接続できません`)
+    }
+    throw err
   }
-  const data = await res.json()
-  return z.object({ products: z.array(ProductWithMinPriceSchema) }).parse(data).products
 }
 
 export async function getProduct(id: string): Promise<Product> {

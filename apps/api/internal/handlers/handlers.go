@@ -2,8 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
-	"net/http"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"

@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: pricecompare
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -76,7 +76,7 @@ services:
       dockerfile: Dockerfile
     container_name: pricecompare-web
     environment:
-      NEXT_PUBLIC_API_URL: http://api:8080
+      NEXT_PUBLIC_API_URL: http://localhost:8080
     ports:
       - "3000:3000"
     depends_on:
@@ -84,8 +84,8 @@ services:
     volumes:
       - ./apps/web:/app
       - /app/node_modules
+    # Next.jsの環境変数はビルド時に埋め込まれるため、再起動で反映される
 
 volumes:
   postgres_data:
   redis_data:
-

@@ -2,7 +2,6 @@ package providers
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -111,14 +110,6 @@ func (p *DemoProvider) FetchOffers(ctx context.Context, product *models.Product)
 	}
 
 	return offers, nil
-}
-
-func stringPtr(s string) *string {
-	return &s
-}
-
-func intPtr(i int) *int {
-	return &i
 }
 
 func toLower(s string) string {
