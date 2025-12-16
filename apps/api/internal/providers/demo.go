@@ -18,26 +18,26 @@ func NewDemoProvider() *DemoProvider {
 		mockOffers: make(map[string][]*models.Offer),
 	}
 
-	// Initialize mock data
+	// Initialize mock data with Unsplash images
 	provider.mockProducts = []ProductCandidate{
 		{
 			Title:    "Wireless Bluetooth Headphones",
 			Brand:    stringPtr("AudioTech"),
 			Model:    stringPtr("ATH-500BT"),
-			ImageURL: stringPtr("https://example.com/images/headphones.jpg"),
+			ImageURL: stringPtr("https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=300&fit=crop"),
 			Source:   "demo",
 		},
 		{
 			Title:    "Smart Watch Pro",
 			Brand:    stringPtr("TechTime"),
 			Model:    stringPtr("TT-SW-2024"),
-			ImageURL: stringPtr("https://example.com/images/watch.jpg"),
+			ImageURL: stringPtr("https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&h=300&fit=crop"),
 			Source:   "demo",
 		},
 		{
 			Title:    "USB-C Charging Cable",
 			Brand:    stringPtr("ChargeMax"),
-			ImageURL: stringPtr("https://example.com/images/cable.jpg"),
+			ImageURL: stringPtr("https://images.unsplash.com/photo-1587825140708-dfaf72ae4b04?w=400&h=300&fit=crop"),
 			Source:   "demo",
 		},
 	}

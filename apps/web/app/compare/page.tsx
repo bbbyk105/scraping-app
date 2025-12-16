@@ -4,6 +4,18 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { getProduct, getProductOffers, Offer, Product } from '@/lib/api'
 import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { ArrowLeft, ExternalLink, Package, Truck, CheckCircle2, XCircle } from 'lucide-react'
 
 function formatPrice(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`
@@ -15,9 +27,9 @@ function ShippingBreakdown({ offer }: { offer: Offer }) {
   const price = offer.price_amount
 
   return (
-    <div className="text-base text-gray-900 space-y-2 bg-white p-3">
-      <div className="font-bold text-lg border-b-2 border-gray-400 pb-1">内訳</div>
-      <div className="space-y-2 pt-2">
+    <div className="text-sm space-y-2 p-3 bg-white rounded-lg border shadow-lg">
+      <div className="font-bold text-base border-b pb-2">内訳</div>
+      <div className="space-y-2">
         <div className="flex justify-between">
           <span>商品価格:</span>
           <span className="font-semibold">{formatPrice(price)}</span>
@@ -32,7 +44,7 @@ function ShippingBreakdown({ offer }: { offer: Offer }) {
             <span className="font-semibold">{formatPrice(fee)}</span>
           </div>
         )}
-        <div className="border-t-2 border-gray-400 pt-2 flex justify-between font-bold text-green-700 text-lg">
+        <div className="border-t pt-2 flex justify-between font-bold text-green-700">
           <span>合計:</span>
           <span>{formatPrice(offer.total_to_us_amount)}</span>
         </div>
@@ -77,9 +89,13 @@ export default function ComparePage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen p-8 bg-white">
+      <main className="min-h-screen p-8 bg-gradient-to-b from-gray-50 to-white">
         <div className="max-w-6xl mx-auto">
-          <p className="text-gray-700 text-base">読み込み中...</p>
+          <Card>
+            <CardContent className="pt-6 text-center">
+              <p className="text-gray-700">読み込み中...</p>
+            </CardContent>
+          </Card>
         </div>
       </main>
     )
@@ -87,136 +103,191 @@ export default function ComparePage() {
 
   if (error || !product) {
     return (
-      <main className="min-h-screen p-8 bg-white">
+      <main className="min-h-screen p-8 bg-gradient-to-b from-gray-50 to-white">
         <div className="max-w-6xl mx-auto">
           <div className="mb-8">
-            <Link href="/search" className="text-blue-600 hover:underline text-base font-medium">
-              ← 検索に戻る
+            <Link href="/search">
+              <Button variant="ghost" className="gap-2">
+                <ArrowLeft className="h-4 w-4" />
+                検索に戻る
+              </Button>
             </Link>
           </div>
-          <div className="p-4 bg-red-50 border-2 border-red-300 text-red-800 rounded-lg">
-            <p className="font-medium">{error || '商品が見つかりませんでした'}</p>
-          </div>
+          <Card className="border-red-200 bg-red-50">
+            <CardContent className="pt-6">
+              <p className="font-medium text-red-800">{error || '商品が見つかりませんでした'}</p>
+            </CardContent>
+          </Card>
         </div>
       </main>
     )
   }
 
   return (
-    <main className="min-h-screen p-8 bg-white">
+    <main className="min-h-screen p-4 md:p-8 bg-gradient-to-b from-gray-50 to-white">
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
-          <Link href="/search" className="text-blue-600 hover:underline text-base font-medium">
-            ← 検索に戻る
+          <Link href="/search">
+            <Button variant="ghost" className="gap-2">
+              <ArrowLeft className="h-4 w-4" />
+              検索に戻る
+            </Button>
           </Link>
         </div>
 
-        <div className="mb-8">
-          {product.image_url && (
-            <img
-              src={product.image_url}
-              alt={product.title}
-              className="w-32 h-32 object-cover rounded mb-4 border-2 border-gray-200"
-            />
-          )}
-          <h1 className="text-4xl font-bold mb-4 text-gray-900">{product.title}</h1>
-          {product.brand && (
-            <p className="text-lg text-gray-700 mb-2">
-              ブランド: {product.brand}
-            </p>
-          )}
-          {product.model && (
-            <p className="text-lg text-gray-700 mb-4">
-              モデル: {product.model}
-            </p>
-          )}
+        <Card className="mb-8">
+          <CardHeader>
+            <div className="flex gap-6">
+              {product.image_url && (
+                <div className="relative w-32 h-32 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                  <img
+                    src={product.image_url}
+                    alt={product.title}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+              <div className="flex-1">
+                <CardTitle className="text-3xl mb-4">{product.title}</CardTitle>
+                <div className="flex flex-wrap gap-3">
+                  {product.brand && (
+                    <Badge variant="secondary" className="text-base px-3 py-1">
+                      {product.brand}
+                    </Badge>
+                  )}
+                  {product.model && (
+                    <Badge variant="outline" className="text-base px-3 py-1">
+                      {product.model}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
+
+        <div className="mb-4">
+          <h2 className="text-2xl font-semibold">
+            価格比較 ({offers.length}件)
+          </h2>
         </div>
 
-        <h2 className="text-2xl font-semibold mb-4 text-gray-900">価格比較 ({offers.length}件)</h2>
-
         {offers.length === 0 ? (
-          <p className="text-gray-600 dark:text-gray-400">
-            この商品のオファーが見つかりませんでした。価格更新ジョブを実行してください。
-          </p>
+          <Card>
+            <CardContent className="pt-6 text-center">
+              <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600 text-lg">
+                この商品のオファーが見つかりませんでした
+              </p>
+              <p className="text-gray-500 text-sm mt-2">
+                価格更新ジョブを実行してください
+              </p>
+            </CardContent>
+          </Card>
         ) : (
-          <div className="overflow-x-auto shadow-lg rounded-lg border-2 border-gray-300 bg-white">
-            <table className="w-full border-collapse text-base">
-              <thead>
-                <tr className="bg-gray-200 border-b-2 border-gray-400">
-                  <th className="border border-gray-400 p-4 text-left font-bold text-gray-900 text-base">販売元</th>
-                  <th className="border border-gray-400 p-4 text-left font-bold text-gray-900 text-base">ソース</th>
-                  <th className="border border-gray-400 p-4 text-right font-bold text-gray-900 text-base">商品価格</th>
-                  <th className="border border-gray-400 p-4 text-right font-bold text-gray-900 text-base">US送料</th>
-                  <th className="border border-gray-400 p-4 text-right font-bold text-gray-900 text-base">合計</th>
-                  <th className="border border-gray-400 p-4 text-center font-bold text-gray-900 text-base">推定到着</th>
-                  <th className="border border-gray-400 p-4 text-center font-bold text-gray-900 text-base">在庫</th>
-                  <th className="border border-gray-400 p-4 text-left font-bold text-gray-900 text-base">詳細</th>
-                </tr>
-              </thead>
-              <tbody>
-                {offers.map((offer) => (
-                  <tr key={offer.id} className="hover:bg-blue-50 transition-colors border-b border-gray-300">
-                    <td className="border border-gray-400 p-4 text-gray-900 font-medium">{offer.seller}</td>
-                    <td className="border border-gray-400 p-4">
-                      <span className="px-3 py-1 bg-blue-200 text-blue-900 rounded font-semibold text-sm">
-                        {offer.source}
-                      </span>
-                    </td>
-                    <td className="border border-gray-400 p-4 text-right text-gray-900 font-semibold text-base">{formatPrice(offer.price_amount)}</td>
-                    <td className="border border-gray-400 p-4 text-right text-gray-900 font-semibold text-base">
-                      <div className="group relative">
-                        {formatPrice(offer.shipping_to_us_amount)}
-                        <div className="absolute left-0 top-full mt-1 hidden group-hover:block z-10 bg-white border-2 border-gray-400 rounded p-3 shadow-xl">
-                          <ShippingBreakdown offer={offer} />
-                        </div>
-                      </div>
-                    </td>
-                    <td className="border border-gray-400 p-4 text-right font-bold text-green-700 text-lg bg-green-50">
-                      {formatPrice(offer.total_to_us_amount)}
-                    </td>
-                    <td className="border border-gray-400 p-4 text-center text-gray-900 font-medium text-base">
-                      {offer.est_delivery_days_min !== null && offer.est_delivery_days_max !== null
-                        ? `${offer.est_delivery_days_min}-${offer.est_delivery_days_max}日`
-                        : 'N/A'}
-                    </td>
-                    <td className="border border-gray-400 p-4 text-center">
-                      {offer.in_stock ? (
-                        <span className="text-green-700 font-bold bg-green-100 px-2 py-1 rounded">在庫あり</span>
-                      ) : (
-                        <span className="text-red-700 font-bold bg-red-100 px-2 py-1 rounded">在庫なし</span>
-                      )}
-                    </td>
-                    <td className="border border-gray-400 p-4">
-                      {offer.url ? (
-                        <a
-                          href={offer.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-700 hover:underline font-semibold text-base"
-                        >
-                          詳細を見る
-                        </a>
-                      ) : (
-                        <span className="text-gray-600">-</span>
-                      )}
-                      <div className="text-sm text-gray-700 mt-2 font-medium">
-                        更新: {new Date(offer.fetched_at).toLocaleString('ja-JP')}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>販売元</TableHead>
+                      <TableHead>ソース</TableHead>
+                      <TableHead className="text-right">商品価格</TableHead>
+                      <TableHead className="text-right">US送料</TableHead>
+                      <TableHead className="text-right">合計</TableHead>
+                      <TableHead className="text-center">推定到着</TableHead>
+                      <TableHead className="text-center">在庫</TableHead>
+                      <TableHead>詳細</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {offers.map((offer) => (
+                      <TableRow key={offer.id} className="hover:bg-muted/50">
+                        <TableCell className="font-medium">{offer.seller}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">{offer.source}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-semibold">
+                          {formatPrice(offer.price_amount)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="group relative inline-block">
+                            <span className="font-semibold cursor-help">
+                              {formatPrice(offer.shipping_to_us_amount)}
+                            </span>
+                            <div className="absolute left-0 top-full mt-2 hidden group-hover:block z-50">
+                              <ShippingBreakdown offer={offer} />
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <span className="text-xl font-bold text-green-600">
+                            {formatPrice(offer.total_to_us_amount)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {offer.est_delivery_days_min !== null && offer.est_delivery_days_max !== null ? (
+                            <div className="flex items-center justify-center gap-1">
+                              <Truck className="h-4 w-4 text-gray-500" />
+                              <span>
+                                {offer.est_delivery_days_min}-{offer.est_delivery_days_max}日
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-gray-500">N/A</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {offer.in_stock ? (
+                            <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+                              <CheckCircle2 className="h-3 w-3 mr-1" />
+                              在庫あり
+                            </Badge>
+                          ) : (
+                            <Badge variant="destructive">
+                              <XCircle className="h-3 w-3 mr-1" />
+                              在庫なし
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {offer.url ? (
+                            <div>
+                              <a
+                                href={offer.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-blue-600 hover:underline font-medium"
+                              >
+                                詳細を見る
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                              <div className="text-xs text-gray-500 mt-1">
+                                {new Date(offer.fetched_at).toLocaleString('ja-JP')}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
-        <footer className="mt-12 pt-8 border-t">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            免責事項: 表示されている価格は参考情報です。最新の価格や在庫状況は販売元のサイトでご確認ください。
-          </p>
-        </footer>
+        <Card className="mt-8 border-blue-200 bg-blue-50">
+          <CardContent className="pt-6">
+            <p className="text-sm text-gray-700">
+              <strong>免責事項:</strong> 表示されている価格は参考情報です。最新の価格や在庫状況は販売元のサイトでご確認ください。
+            </p>
+          </CardContent>
+        </Card>
       </div>
     </main>
   )
 }
-

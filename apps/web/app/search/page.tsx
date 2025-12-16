@@ -3,6 +3,11 @@
 import { useState } from 'react'
 import { searchProducts, ProductWithMinPrice } from '@/lib/api'
 import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { ArrowLeft, Search as SearchIcon, Package } from 'lucide-react'
 
 function formatPrice(cents: number | null | undefined): string {
   if (cents === null || cents === undefined) return 'N/A'
@@ -37,67 +42,101 @@ export default function SearchPage() {
   }
 
   return (
-    <main className="min-h-screen p-8 bg-white">
+    <main className="min-h-screen p-4 md:p-8 bg-gradient-to-b from-gray-50 to-white">
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
-          <Link href="/" className="text-blue-600 hover:underline text-base font-medium">
-            ← ホームに戻る
+          <Link href="/">
+            <Button variant="ghost" className="gap-2">
+              <ArrowLeft className="h-4 w-4" />
+              ホームに戻る
+            </Button>
           </Link>
         </div>
 
-        <h1 className="text-4xl font-bold mb-8 text-gray-900">商品検索</h1>
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            商品検索
+          </h1>
+          <p className="text-gray-600">キーワードで商品を検索してください</p>
+        </div>
 
-        <form onSubmit={handleSearch} className="mb-8">
-          <div className="flex gap-4">
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="商品名を入力..."
-              className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg text-base focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-            />
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium text-base transition-colors"
-            >
-              {loading ? '検索中...' : '検索'}
-            </button>
-          </div>
-        </form>
+        <Card className="mb-8">
+          <CardContent className="pt-6">
+            <form onSubmit={handleSearch} className="flex gap-4">
+              <div className="flex-1 relative">
+                <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                <Input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="商品名を入力..."
+                  className="pl-10 h-12 text-base"
+                />
+              </div>
+              <Button
+                type="submit"
+                disabled={loading}
+                size="lg"
+                className="px-8"
+              >
+                {loading ? (
+                  <>検索中...</>
+                ) : (
+                  <>
+                    <SearchIcon className="mr-2 h-4 w-4" />
+                    検索
+                  </>
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
 
         {error && (
-          <div className="mb-4 p-4 bg-red-50 border-2 border-red-300 text-red-800 rounded-lg">
-            <p className="font-medium">{error}</p>
-          </div>
+          <Card className="mb-4 border-red-200 bg-red-50">
+            <CardContent className="pt-6">
+              <p className="text-red-800 font-medium">{error}</p>
+            </CardContent>
+          </Card>
         )}
 
         {products.length > 0 && (
           <div className="space-y-4">
-            <h2 className="text-2xl font-semibold text-gray-900">検索結果 ({products.length}件)</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-semibold">
+                検索結果 ({products.length}件)
+              </h2>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {products.map((product) => (
-                <Link
-                  key={product.id}
-                  href={`/compare?productId=${product.id}`}
-                  className="block p-5 border-2 border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors shadow-sm"
-                >
-                  {product.image_url && (
-                    <img
-                      src={product.image_url}
-                      alt={product.title}
-                      className="w-full h-48 object-cover rounded mb-4"
-                    />
-                  )}
-                  <h3 className="font-semibold mb-2 text-gray-900 text-lg">{product.title}</h3>
-                  {product.brand && (
-                    <p className="text-sm text-gray-700 mb-2">
-                      ブランド: {product.brand}
-                    </p>
-                  )}
-                  <p className="text-lg font-bold text-blue-600">
-                    最安値: {formatPrice(product.min_price_cents)}
-                  </p>
+                <Link key={product.id} href={`/compare?productId=${product.id}`}>
+                  <Card className="h-full hover:shadow-lg transition-all cursor-pointer border-2 hover:border-blue-300">
+                    {product.image_url && (
+                      <div className="relative w-full h-48 bg-gray-100 rounded-t-lg overflow-hidden">
+                        <img
+                          src={product.image_url}
+                          alt={product.title}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                    <CardHeader>
+                      <CardTitle className="text-lg leading-tight line-clamp-2">{product.title}</CardTitle>
+                      {product.brand && (
+                        <CardDescription>
+                          <Badge variant="secondary">{product.brand}</Badge>
+                        </CardDescription>
+                      )}
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-2xl font-bold text-green-600">
+                          {formatPrice(product.min_price_cents)}
+                        </span>
+                        <span className="text-sm text-gray-500">から</span>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </Link>
               ))}
             </div>
@@ -105,10 +144,17 @@ export default function SearchPage() {
         )}
 
         {!loading && products.length === 0 && query && (
-          <p className="text-gray-700 text-base">検索結果が見つかりませんでした</p>
+          <Card>
+            <CardContent className="pt-6 text-center">
+              <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600 text-lg">検索結果が見つかりませんでした</p>
+              <p className="text-gray-500 text-sm mt-2">
+                別のキーワードで検索してみてください
+              </p>
+            </CardContent>
+          </Card>
         )}
       </div>
     </main>
   )
 }
-
