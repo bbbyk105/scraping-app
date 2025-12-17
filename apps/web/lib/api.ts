@@ -32,6 +32,11 @@ export const OfferSchema = z.object({
   in_stock: z.boolean(),
   url: z.string().nullable().optional(),
   fetched_at: z.string(),
+  fee_amount: z.number().optional(),
+  tax_amount: z.number().nullable().optional(),
+  availability_status: z.string().nullable().optional(),
+  estimated_delivery_date: z.string().nullable().optional(),
+  price_updated_at: z.string(),
   created_at: z.string(),
   updated_at: z.string(),
 })
@@ -86,11 +91,45 @@ export async function getProductOffers(id: string): Promise<Offer[]> {
   return z.object({ offers: z.array(OfferSchema) }).parse(data).offers
 }
 
-export async function fetchPrices(source: string): Promise<{ job_id: string; status: string; source: string }> {
+export async function getProductOffersWithSort(
+  id: string,
+  sort: 'total' | 'fastest' | 'newest' | 'in_stock' = 'total'
+): Promise<Offer[]> {
+  const res = await fetch(`${API_URL}/api/products/${id}/compare?sort=${sort}`)
+  if (!res.ok) {
+    throw new Error('Failed to get offers')
+  }
+  const data = await res.json()
+  return z.object({ offers: z.array(OfferSchema) }).parse(data).offers
+}
+
+export type ResolveURLResponse = {
+  product: Product
+  identifier_type: string
+  identifier_value: string
+  provider: string
+}
+
+export async function resolveURL(url: string): Promise<ResolveURLResponse> {
+  const res = await fetch(`${API_URL}/api/resolve-url`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url }),
+  })
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ error: 'Failed to resolve URL' }))
+    throw new Error(errorData.error || errorData.description || 'Failed to resolve URL')
+  }
+  return res.json()
+}
+
+export async function fetchPrices(
+  source?: string
+): Promise<{ job_id: string; status: string; source: string }> {
   const res = await fetch(`${API_URL}/api/admin/jobs/fetch_prices`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ source }),
+    body: source ? JSON.stringify({ source }) : JSON.stringify({}),
   })
   if (!res.ok) {
     throw new Error('Failed to fetch prices')

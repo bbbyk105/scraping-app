@@ -233,8 +233,9 @@ func estimateShippingFromPrice(priceCents int) int {
 
 func extractBrand(title string) *string {
 	// Simple heuristic: first word might be brand
+	// Only return brand if there are multiple words (single word products are not brands)
 	parts := strings.Fields(title)
-	if len(parts) > 0 {
+	if len(parts) > 1 {
 		brand := parts[0]
 		if len(brand) > 2 && len(brand) < 20 {
 			return &brand

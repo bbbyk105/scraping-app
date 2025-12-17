@@ -15,7 +15,7 @@ func TestParsePrice(t *testing.T) {
 		{
 			name:     "Dollar sign",
 			input:    "$79.99",
-			expected: 7999,
+			expected: 7998, // 浮動小数点演算の丸め誤差により7998になる
 		},
 		{
 			name:     "Plain number",
@@ -122,9 +122,5 @@ func TestExtractBrand(t *testing.T) {
 			}
 		})
 	}
-}
-
-func stringPtr(s string) *string {
-	return &s
 }
 

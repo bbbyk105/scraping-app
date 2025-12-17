@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"encoding/json"
+	"net/url"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -16,29 +18,35 @@ import (
 )
 
 type Handlers struct {
-	productRepo     *repository.ProductRepository
-	offerRepo       *repository.OfferRepository
-	providerManager *providers.Manager
-	asynqClient     *asynq.Client
-	shippingCalc    *shipping.Calculator
-	logger          *zap.Logger
+	productRepo        *repository.ProductRepository
+	offerRepo          *repository.OfferRepository
+	identifierRepo     *repository.ProductIdentifierRepository
+	sourceProductRepo  *repository.SourceProductRepository
+	providerManager    *providers.Manager
+	asynqClient        *asynq.Client
+	shippingCalc       *shipping.Calculator
+	logger             *zap.Logger
 }
 
 func New(
 	productRepo *repository.ProductRepository,
 	offerRepo *repository.OfferRepository,
+	identifierRepo *repository.ProductIdentifierRepository,
+	sourceProductRepo *repository.SourceProductRepository,
 	providerManager *providers.Manager,
 	asynqClient *asynq.Client,
 	shippingCalc *shipping.Calculator,
 	logger *zap.Logger,
 ) *Handlers {
 	return &Handlers{
-		productRepo:     productRepo,
-		offerRepo:       offerRepo,
-		providerManager: providerManager,
-		asynqClient:     asynqClient,
-		shippingCalc:    shippingCalc,
-		logger:          logger,
+		productRepo:       productRepo,
+		offerRepo:         offerRepo,
+		identifierRepo:    identifierRepo,
+		sourceProductRepo: sourceProductRepo,
+		providerManager:   providerManager,
+		asynqClient:       asynqClient,
+		shippingCalc:      shippingCalc,
+		logger:            logger,
 	}
 }
 
@@ -161,6 +169,160 @@ func (h *Handlers) GetProductOffers(c *fiber.Ctx) error {
 	})
 }
 
+// CompareProductOffers returns offers for a product with sorting options.
+// Supported sort keys: total, fastest, newest, in_stock
+func (h *Handlers) CompareProductOffers(c *fiber.Ctx) error {
+	idStr := c.Params("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "invalid product id",
+		})
+	}
+
+	sortKey := c.Query("sort", "total")
+	if sortKey != "total" && sortKey != "fastest" && sortKey != "newest" && sortKey != "in_stock" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "invalid sort key. must be one of: total, fastest, newest, in_stock",
+		})
+	}
+
+	offers, err := h.offerRepo.GetByProductIDWithSort(id, sortKey)
+	if err != nil {
+		h.logger.Error("Get offers for compare failed", zap.Error(err))
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "failed to get offers",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"offers": offers,
+	})
+}
+
+type ResolveURLRequest struct {
+	URL string `json:"url"`
+}
+
+// ResolveURL parses an input URL, extracts identifiers (e.g. ASIN),
+// finds or creates a corresponding product, and returns it.
+// For now, this supports a limited set of providers and responds politely
+// when the URL cannot be handled.
+func (h *Handlers) ResolveURL(c *fiber.Ctx) error {
+	var req ResolveURLRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "invalid request body",
+		})
+	}
+	if req.URL == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "url is required",
+		})
+	}
+
+	rawURL := strings.TrimSpace(req.URL)
+	// 補助: スキームが無い場合は https:// を補完 (例: www.amazon.com/dp/ASIN)
+	if !strings.Contains(rawURL, "://") {
+		rawURL = "https://" + rawURL
+	}
+
+	parsed, err := url.Parse(rawURL)
+	if err != nil || parsed.Host == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "URLの形式が正しくありません",
+		})
+	}
+
+	host := strings.ToLower(parsed.Host)
+	path := parsed.Path
+
+	var (
+		provider       string
+		identifierType string
+		identifier     string
+		sourceID       string
+	)
+
+	// Very small, explicit set of supported URL patterns.
+	// Example: https://www.amazon.com/dp/B08N5WRWNW
+	if strings.Contains(host, "amazon.") {
+		provider = "amazon"
+		parts := strings.Split(path, "/")
+		for i, p := range parts {
+			if p == "dp" || (p == "product" && i > 0 && parts[i-1] == "gp") {
+				if i+1 < len(parts) && parts[i+1] != "" {
+					identifierType = "ASIN"
+					identifier = parts[i+1]
+					sourceID = parts[i+1]
+				}
+				break
+			}
+		}
+	}
+
+	if provider == "" || identifierType == "" || identifier == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":       "このURLは現在のバージョンでは解析対象外です",
+			"description": "Amazonの商品詳細URL (https://www.amazon.com/dp/ASIN) のみ対応しています。",
+		})
+	}
+
+	// Try to find an existing product via identifier
+	_, existingProduct, err := h.identifierRepo.FindByTypeAndValue(identifierType, identifier)
+	if err != nil {
+		h.logger.Error("ResolveURL: failed to lookup identifier", zap.Error(err))
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "failed to resolve url",
+		})
+	}
+
+	product := existingProduct
+	if product == nil {
+		// Create a minimal product placeholder. In a future iteration this can be
+		// populated by a dedicated provider without violating robots/ALLOW_LIVE_FETCH.
+		title := "URLから登録された商品 (" + identifierType + ": " + identifier + ")"
+		product = &models.Product{
+			Title: title,
+		}
+		if err := h.productRepo.Create(product); err != nil {
+			h.logger.Error("ResolveURL: failed to create product", zap.Error(err))
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "failed to create product from url",
+			})
+		}
+
+		// Save identifier mapping
+		if err := h.identifierRepo.Create(&models.ProductIdentifier{
+			ProductID: product.ID,
+			Type:      identifierType,
+			Value:     identifier,
+		}); err != nil {
+			h.logger.Warn("ResolveURL: failed to save identifier", zap.Error(err))
+		}
+	}
+
+	// Upsert source product info
+	if sourceID != "" {
+		sp := &models.SourceProduct{
+			ProductID: product.ID,
+			Provider:  provider,
+			SourceID:  sourceID,
+			URL:       rawURL,
+		}
+		if err := h.sourceProductRepo.Upsert(sp); err != nil {
+			h.logger.Warn("ResolveURL: failed to upsert source product", zap.Error(err))
+		}
+	}
+
+	return c.JSON(fiber.Map{
+		"product":          product,
+		"identifier_type":  identifierType,
+		"identifier_value": identifier,
+		"provider":         provider,
+	})
+}
+
 type FetchPricesRequest struct {
 	Source string `json:"source"` // "demo", "public_html", or "all"
 }
@@ -177,9 +339,9 @@ func (h *Handlers) FetchPrices(c *fiber.Ctx) error {
 		req.Source = "all"
 	}
 
-	if req.Source != "demo" && req.Source != "public_html" && req.Source != "all" {
+	if req.Source != "demo" && req.Source != "public_html" && req.Source != "live" && req.Source != "all" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "invalid source. must be 'demo', 'public_html', or 'all'",
+			"error": "invalid source. must be 'demo', 'public_html', 'live', or 'all'",
 		})
 	}
 

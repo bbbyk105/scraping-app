@@ -49,7 +49,20 @@ services:
       US_SHIP_MODE: TABLE
       SHIPPING_FEE_PERCENT: 3.0
       FX_USDJPY: 150.0
-      USER_AGENT: PriceCompareBot/1.0
+      USER_AGENT: "PriceCompareBot/1.0 (+contact@example.com)"
+      # コンプライアンス設定
+      ALLOW_LIVE_FETCH: "true"
+      ROBOTS_CACHE_TTL_HOURS: "24"
+      PROVIDER_RATE_LIMIT_DEMO_RPS: "10"
+      PROVIDER_RATE_LIMIT_PUBLIC_HTML_RPS: "10"
+      PROVIDER_RATE_LIMIT_LIVE_RPS: "1"
+      PROVIDER_RATE_LIMIT_BURST: "2"
+      HTTP_TIMEOUT_SECONDS: "10"
+      HTTP_MAX_RETRIES: "3"
+      # Live Provider設定（実際のスクレイピング用）
+      LIVE_PROVIDER_BASE_URL: "https://www.amazon.com/"
+      # 開発用プロバイダ（demo/public_html）を有効化
+      ENABLE_DEMO_PROVIDERS: "true"
     ports:
       - "8080:8080"
     depends_on:
@@ -77,6 +90,8 @@ services:
     container_name: pricecompare-web
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8080
+      # 開発用プロバイダ(demo/public_html)を UI に表示するかどうか
+      NEXT_PUBLIC_ENABLE_DEMO_PROVIDERS: "true"
     ports:
       - "3000:3000"
     depends_on:

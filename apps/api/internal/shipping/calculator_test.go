@@ -18,8 +18,8 @@ func TestCalculateShipping(t *testing.T) {
 		{
 			name:        "Low price (< $20)",
 			priceCents:  1999, // $19.99
-			expectedMin: 1200, // ~$9.99 base + ~$0.60 fee = ~$10.59
-			expectedMax: 1300,
+			expectedMin: 1050, // $9.99 base + $0.60 fee (3% of $19.99) = $10.59 = 1059 cents
+			expectedMax: 1060,
 		},
 		{
 			name:        "Mid price ($20-$50)",
@@ -77,13 +77,13 @@ func TestConvertToJPY(t *testing.T) {
 	}{
 		{
 			name:        "$1.00 = ¥150",
-			usdCents:    100,
-			expectedJPY: 15000,
+			usdCents:    100, // $1.00 = 100 cents
+			expectedJPY: 150, // $1.00 * 150 = ¥150
 		},
 		{
 			name:        "$10.00 = ¥1500",
-			usdCents:    1000,
-			expectedJPY: 150000,
+			usdCents:    1000, // $10.00 = 1000 cents
+			expectedJPY: 1500, // $10.00 * 150 = ¥1500
 		},
 	}
 

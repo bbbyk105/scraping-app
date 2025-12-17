@@ -5,17 +5,13 @@ import { fetchPrices } from '@/lib/api'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { ArrowLeft, Settings, Play, CheckCircle2, XCircle, Info } from 'lucide-react'
 
+const ENABLE_DEMO_PROVIDERS =
+  typeof process !== 'undefined' &&
+  process.env.NEXT_PUBLIC_ENABLE_DEMO_PROVIDERS === 'true'
+
 export default function AdminJobsPage() {
-  const [source, setSource] = useState('all')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
@@ -25,7 +21,8 @@ export default function AdminJobsPage() {
     setMessage(null)
 
     try {
-      const result = await fetchPrices(source)
+      // source を指定しない → API 側で自動的に "all" と解釈され、有効なプロバイダから取得
+      const result = await fetchPrices()
       setMessage({
         type: 'success',
         text: `ジョブが正常にキューに追加されました。Job ID: ${result.job_id}`,
@@ -68,27 +65,11 @@ export default function AdminJobsPage() {
           <CardHeader>
             <CardTitle>ジョブ実行</CardTitle>
             <CardDescription>
-              ソースを選択して価格更新ジョブを実行してください
+              有効になっているプロバイダから自動的に価格情報を取得・更新します
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleFetchPrices} className="space-y-6">
-              <div className="space-y-2">
-                <label htmlFor="source" className="text-sm font-medium">
-                  ソースを選択
-                </label>
-                <Select value={source} onValueChange={setSource}>
-                  <SelectTrigger id="source" className="w-full">
-                    <SelectValue placeholder="ソースを選択" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">すべて</SelectItem>
-                    <SelectItem value="demo">Demo プロバイダ</SelectItem>
-                    <SelectItem value="public_html">Public HTML プロバイダ</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
               <Button
                 type="submit"
                 disabled={loading}
@@ -100,7 +81,7 @@ export default function AdminJobsPage() {
                 ) : (
                   <>
                     <Play className="mr-2 h-4 w-4" />
-                    価格更新ジョブを実行
+                    価格更新ジョブを実行（自動判定）
                   </>
                 )}
               </Button>
@@ -140,22 +121,43 @@ export default function AdminJobsPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
+              {ENABLE_DEMO_PROVIDERS && (
+                <>
+                  <div>
+                    <h3 className="font-semibold mb-2">Demo プロバイダ（開発・テスト用）</h3>
+                    <p className="text-sm text-gray-600">
+                      モックデータを使用してテストします。本番環境では通常無効化されます。
+                    </p>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-2">Public HTML プロバイダ（開発・テスト用）</h3>
+                    <p className="text-sm text-gray-600">
+                      /samples 配下のHTMLファイルから価格情報を抽出します。本番ビルドでは使用しない想定の検証用プロバイダです。
+                    </p>
+                  </div>
+                </>
+              )}
               <div>
-                <h3 className="font-semibold mb-2">Demo プロバイダ</h3>
+                <h3 className="font-semibold mb-2">Live プロバイダ</h3>
                 <p className="text-sm text-gray-600">
-                  モックデータを使用してテストします。開発・テスト用のプロバイダです。
-                </p>
-              </div>
-              <div>
-                <h3 className="font-semibold mb-2">Public HTML プロバイダ</h3>
-                <p className="text-sm text-gray-600">
-                  /samples 配下のHTMLファイルから価格情報を抽出します。MVPでは実サイトへのアクセスは行いません。
+                  実際の外部サイトから商品情報を取得します。ALLOW_LIVE_FETCH=true に設定する必要があります。
+                  robots.txtチェック、レートリミット、監査ログが自動的に適用されます。
                 </p>
               </div>
               <div>
                 <h3 className="font-semibold mb-2">すべて</h3>
                 <p className="text-sm text-gray-600">
-                  すべてのプロバイダを順次実行します。
+                  有効化されているすべてのプロバイダを順次実行します。
+                </p>
+              </div>
+              <div>
+                <h3 className="font-semibold mb-2">結果の確認方法</h3>
+                <p className="text-sm text-gray-600">
+                  ジョブ実行後に
+                  <code className="mx-1">/search</code>
+                  から商品を選択し、
+                  <code className="mx-1">/compare</code>
+                  画面の「更新日時」列や「更新日時が新しい順」ソートで価格更新が反映されていることを確認できます。
                 </p>
               </div>
             </div>

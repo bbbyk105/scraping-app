@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"log/slog"
 	"os"
 
 	"github.com/gofiber/fiber/v2"
@@ -10,10 +11,13 @@ import (
 	fiberlogger "github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/hibiken/asynq"
 	"github.com/joho/godotenv"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 
+	"github.com/pricecompare/api/internal/compliance/robots"
 	"github.com/pricecompare/api/internal/config"
 	"github.com/pricecompare/api/internal/handlers"
+	"github.com/pricecompare/api/internal/httpclient"
 	"github.com/pricecompare/api/internal/jobs"
 	"github.com/pricecompare/api/internal/providers"
 	"github.com/pricecompare/api/internal/repository"
@@ -53,14 +57,41 @@ func main() {
 		Concurrency: 10,
 	})
 
+	// Initialize Redis client for httpclient (robots.txt cache)
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     cfg.RedisAddr(),
+		Password: cfg.RedisPassword,
+		DB:       0,
+	})
+	defer redisClient.Close()
+
+	// Create slog logger for httpclient (structured logging)
+	slogLogger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}))
+
+	// Initialize HTTP client with compliance features
+	httpClientCfg := httpclient.LoadConfig()
+	httpClient := httpclient.New(httpClientCfg, slogLogger, robots.NewRedisCache(redisClient))
+
 	// Initialize repositories
 	productRepo := repository.NewProductRepository(db)
 	offerRepo := repository.NewOfferRepository(db)
+	identifierRepo := repository.NewProductIdentifierRepository(db)
+	sourceProductRepo := repository.NewSourceProductRepository(db)
 
 	// Initialize providers
 	providerManager := providers.NewManager()
-	providerManager.Register("demo", providers.NewDemoProvider())
-	providerManager.Register("public_html", providers.NewPublicHTMLProvider(cfg.UserAgent))
+
+	// Demo / PublicHTML providers are development-only. They can be enabled explicitly
+	// via ENABLE_DEMO_PROVIDERS=true.
+	if os.Getenv("ENABLE_DEMO_PROVIDERS") == "true" {
+		providerManager.Register("demo", providers.NewDemoProvider())
+		providerManager.Register("public_html", providers.NewPublicHTMLProvider(cfg.UserAgent))
+	}
+
+	// Live provider is the only provider intended for production use.
+	providerManager.Register("live", providers.NewLiveProvider(httpClient))
 
 	// Initialize shipping calculator
 	shippingConfig := cfg.ShippingConfig()
@@ -86,6 +117,8 @@ func main() {
 	h := handlers.New(
 		productRepo,
 		offerRepo,
+		identifierRepo,
+		sourceProductRepo,
 		providerManager,
 		asynqClient,
 		shippingCalc,
@@ -128,6 +161,8 @@ func main() {
 		api.Get("/search", h.Search)
 		api.Get("/products/:id", h.GetProduct)
 		api.Get("/products/:id/offers", h.GetProductOffers)
+		api.Get("/products/:id/compare", h.CompareProductOffers)
+		api.Post("/resolve-url", h.ResolveURL)
 		api.Post("/admin/jobs/fetch_prices", h.FetchPrices)
 		api.Post("/image-search", h.ImageSearch) // Stub
 	}

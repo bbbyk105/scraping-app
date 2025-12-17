@@ -2,11 +2,18 @@
 
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { getProduct, getProductOffers, Offer, Product } from '@/lib/api'
+import { getProduct, getProductOffersWithSort, Offer, Product } from '@/lib/api'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -15,7 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { ArrowLeft, ExternalLink, Package, Truck, CheckCircle2, XCircle } from 'lucide-react'
+import { ArrowLeft, ExternalLink, Package, Truck, CheckCircle2, XCircle, ArrowUpDown } from 'lucide-react'
 
 function formatPrice(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`
@@ -23,7 +30,7 @@ function formatPrice(cents: number): string {
 
 function ShippingBreakdown({ offer }: { offer: Offer }) {
   const baseShipping = offer.shipping_to_us_amount
-  const fee = offer.total_to_us_amount - offer.price_amount - baseShipping
+  const fee = offer.fee_amount || (offer.total_to_us_amount - offer.price_amount - baseShipping)
   const price = offer.price_amount
 
   return (
@@ -44,6 +51,12 @@ function ShippingBreakdown({ offer }: { offer: Offer }) {
             <span className="font-semibold">{formatPrice(fee)}</span>
           </div>
         )}
+        {offer.tax_amount && offer.tax_amount > 0 && (
+          <div className="flex justify-between">
+            <span>税:</span>
+            <span className="font-semibold">{formatPrice(offer.tax_amount)}</span>
+          </div>
+        )}
         <div className="border-t pt-2 flex justify-between font-bold text-green-700">
           <span>合計:</span>
           <span>{formatPrice(offer.total_to_us_amount)}</span>
@@ -53,6 +66,8 @@ function ShippingBreakdown({ offer }: { offer: Offer }) {
   )
 }
 
+type SortKey = 'total' | 'fastest' | 'newest' | 'in_stock'
+
 export default function ComparePage() {
   const searchParams = useSearchParams()
   const productId = searchParams.get('productId')
@@ -61,6 +76,7 @@ export default function ComparePage() {
   const [offers, setOffers] = useState<Offer[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [sortKey, setSortKey] = useState<SortKey>('total')
 
   useEffect(() => {
     if (!productId) {
@@ -73,7 +89,7 @@ export default function ComparePage() {
       try {
         const [productData, offersData] = await Promise.all([
           getProduct(productId),
-          getProductOffers(productId),
+          getProductOffersWithSort(productId, sortKey),
         ])
         setProduct(productData)
         setOffers(offersData)
@@ -85,7 +101,18 @@ export default function ComparePage() {
     }
 
     fetchData()
-  }, [productId])
+  }, [productId, sortKey])
+
+  const handleSortChange = (newSort: SortKey) => {
+    setSortKey(newSort)
+    setLoading(true)
+    getProductOffersWithSort(productId!, newSort)
+      .then(setOffers)
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : 'データの取得に失敗しました')
+      })
+      .finally(() => setLoading(false))
+  }
 
   if (loading) {
     return (
@@ -166,10 +193,24 @@ export default function ComparePage() {
           </CardHeader>
         </Card>
 
-        <div className="mb-4">
+        <div className="mb-4 flex items-center justify-between">
           <h2 className="text-2xl font-semibold">
             価格比較 ({offers.length}件)
           </h2>
+          <div className="flex items-center gap-2">
+            <ArrowUpDown className="h-4 w-4 text-gray-500" />
+            <Select value={sortKey} onValueChange={handleSortChange}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="並び替え" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="total">総額が安い順</SelectItem>
+                <SelectItem value="fastest">納期が早い順</SelectItem>
+                <SelectItem value="newest">更新日時が新しい順</SelectItem>
+                <SelectItem value="in_stock">在庫あり優先</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {offers.length === 0 ? (
@@ -194,10 +235,12 @@ export default function ComparePage() {
                       <TableHead>販売元</TableHead>
                       <TableHead>ソース</TableHead>
                       <TableHead className="text-right">商品価格</TableHead>
-                      <TableHead className="text-right">US送料</TableHead>
+                      <TableHead className="text-right">送料</TableHead>
+                      <TableHead className="text-right">手数料</TableHead>
                       <TableHead className="text-right">合計</TableHead>
                       <TableHead className="text-center">推定到着</TableHead>
                       <TableHead className="text-center">在庫</TableHead>
+                      <TableHead>更新日時</TableHead>
                       <TableHead>詳細</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -220,6 +263,13 @@ export default function ComparePage() {
                               <ShippingBreakdown offer={offer} />
                             </div>
                           </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {offer.fee_amount ? (
+                            <span className="font-semibold">{formatPrice(offer.fee_amount)}</span>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
                           <span className="text-xl font-bold text-green-600">
@@ -251,6 +301,17 @@ export default function ComparePage() {
                             </Badge>
                           )}
                         </TableCell>
+                        <TableCell className="text-sm text-gray-600">
+                          {offer.price_updated_at
+                            ? new Date(offer.price_updated_at).toLocaleString('ja-JP', {
+                                year: 'numeric',
+                                month: '2-digit',
+                                day: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })
+                            : '-'}
+                        </TableCell>
                         <TableCell>
                           {offer.url ? (
                             <div>
@@ -263,9 +324,6 @@ export default function ComparePage() {
                                 詳細を見る
                                 <ExternalLink className="h-3 w-3" />
                               </a>
-                              <div className="text-xs text-gray-500 mt-1">
-                                {new Date(offer.fetched_at).toLocaleString('ja-JP')}
-                              </div>
                             </div>
                           ) : (
                             <span className="text-gray-400">-</span>

@@ -64,16 +64,21 @@ func (r *ProductRepository) GetByID(id uuid.UUID) (*models.Product, error) {
 }
 
 func (r *ProductRepository) Search(query string, limit int) ([]*models.Product, error) {
+	// Search across products (title, brand, model) and product_identifiers (JAN/UPC/EAN/MPN/ASIN)
 	sqlQuery := `
-		SELECT id, title, brand, model, image_url, created_at, updated_at
-		FROM products
-		WHERE to_tsvector('english', title) @@ plainto_tsquery('english', $1)
-		   OR title ILIKE $2
-		ORDER BY updated_at DESC
-		LIMIT $3
+		SELECT DISTINCT p.id, p.title, p.brand, p.model, p.image_url, p.created_at, p.updated_at
+		FROM products p
+		LEFT JOIN product_identifiers pi ON pi.product_id = p.id
+		WHERE to_tsvector('english', p.title) @@ plainto_tsquery('english', $1)
+		   OR p.title ILIKE $2
+		   OR p.brand ILIKE $2
+		   OR p.model ILIKE $2
+		   OR pi.value = $3
+		ORDER BY p.updated_at DESC
+		LIMIT $4
 	`
 	searchPattern := "%" + query + "%"
-	rows, err := r.db.Query(sqlQuery, query, searchPattern, limit)
+	rows, err := r.db.Query(sqlQuery, query, searchPattern, query, limit)
 	if err != nil {
 		return nil, err
 	}

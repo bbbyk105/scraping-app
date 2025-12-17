@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/hibiken/asynq"
 	"go.uber.org/zap"
@@ -102,6 +103,28 @@ func (p *Processor) fetchFromProvider(ctx context.Context, provider providers.Pr
 				p.logger.Error("Failed to process candidate", zap.Error(err))
 			}
 		}
+	} else if sourceName == "live" {
+		// For live provider, use predefined search queries
+		// In production, these could come from a configuration or database
+		queries := []string{"headphones", "watch", "laptop"}
+		for _, query := range queries {
+			candidates, err := provider.Search(ctx, query)
+			if err != nil {
+				p.logger.Error("Search failed", zap.Error(err))
+				continue
+			}
+
+			// Limit number of products per query to avoid too many requests
+			maxProducts := 5
+			for i, candidate := range candidates {
+				if i >= maxProducts {
+					break
+				}
+				if err := p.processCandidate(ctx, candidate, provider, sourceName); err != nil {
+					p.logger.Error("Failed to process candidate", zap.Error(err))
+				}
+			}
+		}
 	}
 
 	return nil
@@ -157,9 +180,12 @@ func (p *Processor) processCandidate(
 	}
 
 	// Recalculate shipping and save offers
+	now := time.Now()
 	for _, offer := range offers {
 		offer.ShippingToUSAmount = p.shippingCalc.CalculateShipping(offer.PriceAmount)
 		offer.TotalToUSAmount = p.shippingCalc.CalculateTotal(offer.PriceAmount)
+		// Update price_updated_at when price information is refreshed
+		offer.PriceUpdatedAt = now
 
 		if err := p.offerRepo.Upsert(offer); err != nil {
 			p.logger.Error("Failed to upsert offer",
