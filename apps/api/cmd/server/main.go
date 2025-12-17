@@ -93,6 +93,23 @@ func main() {
 	// Live provider is the only provider intended for production use.
 	providerManager.Register("live", providers.NewLiveProvider(httpClient))
 
+	// Official API providers (Walmart and Amazon)
+	walmartProvider := providers.NewWalmartOfficialProvider(httpClient)
+	if walmartProvider.IsEnabled() {
+		providerManager.Register("walmart", walmartProvider)
+		logger.Info("Walmart API provider enabled")
+	} else {
+		logger.Info("Walmart API provider disabled (WALMART_API_KEY not set)")
+	}
+
+	amazonProvider := providers.NewAmazonOfficialProvider(httpClient)
+	if amazonProvider.IsEnabled() {
+		providerManager.Register("amazon", amazonProvider)
+		logger.Info("Amazon API provider enabled")
+	} else {
+		logger.Info("Amazon API provider disabled (AMAZON_ACCESS_KEY, AMAZON_SECRET_KEY, or AMAZON_ASSOCIATE_TAG not set)")
+	}
+
 	// Initialize shipping calculator
 	shippingConfig := cfg.ShippingConfig()
 	shippingCalc := shipping.NewCalculator(shipping.Config{
@@ -102,7 +119,7 @@ func main() {
 	})
 
 	// Initialize job processor
-	jobProcessor := jobs.NewProcessor(productRepo, offerRepo, providerManager, shippingCalc, logger)
+	jobProcessor := jobs.NewProcessor(productRepo, offerRepo, identifierRepo, providerManager, shippingCalc, logger)
 	mux := asynq.NewServeMux()
 	mux.HandleFunc(jobs.TypeFetchPrices, jobProcessor.HandleFetchPrices)
 

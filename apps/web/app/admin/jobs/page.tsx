@@ -5,6 +5,13 @@ import { fetchPrices } from '@/lib/api'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { ArrowLeft, Settings, Play, CheckCircle2, XCircle, Info } from 'lucide-react'
 
 const ENABLE_DEMO_PROVIDERS =
@@ -13,6 +20,7 @@ const ENABLE_DEMO_PROVIDERS =
 
 export default function AdminJobsPage() {
   const [loading, setLoading] = useState(false)
+  const [source, setSource] = useState<string>('all')
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   const handleFetchPrices = async (e: React.FormEvent) => {
@@ -21,11 +29,10 @@ export default function AdminJobsPage() {
     setMessage(null)
 
     try {
-      // source を指定しない → API 側で自動的に "all" と解釈され、有効なプロバイダから取得
-      const result = await fetchPrices()
+      const result = await fetchPrices(source)
       setMessage({
         type: 'success',
-        text: `ジョブが正常にキューに追加されました。Job ID: ${result.job_id}`,
+        text: `ジョブが正常にキューに追加されました。Job ID: ${result.job_id} (Source: ${result.source})`,
       })
     } catch (err) {
       setMessage({
@@ -70,6 +77,28 @@ export default function AdminJobsPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleFetchPrices} className="space-y-6">
+              <div className="space-y-2">
+                <label htmlFor="source" className="text-sm font-medium">
+                  プロバイダを選択
+                </label>
+                <Select value={source} onValueChange={setSource}>
+                  <SelectTrigger id="source" className="w-full">
+                    <SelectValue placeholder="プロバイダを選択" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">すべて（有効なプロバイダ）</SelectItem>
+                    <SelectItem value="walmart">Walmart（公式API）</SelectItem>
+                    <SelectItem value="amazon">Amazon（公式API）</SelectItem>
+                    {ENABLE_DEMO_PROVIDERS && (
+                      <>
+                        <SelectItem value="demo">Demo（開発・テスト用）</SelectItem>
+                        <SelectItem value="public_html">Public HTML（開発・テスト用）</SelectItem>
+                      </>
+                    )}
+                    <SelectItem value="live">Live（スクレイピング）</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <Button
                 type="submit"
                 disabled={loading}
@@ -81,7 +110,7 @@ export default function AdminJobsPage() {
                 ) : (
                   <>
                     <Play className="mr-2 h-4 w-4" />
-                    価格更新ジョブを実行（自動判定）
+                    価格更新ジョブを実行
                   </>
                 )}
               </Button>
@@ -121,6 +150,21 @@ export default function AdminJobsPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
+              <div>
+                <h3 className="font-semibold mb-2">Walmart（公式API）</h3>
+                <p className="text-sm text-gray-600">
+                  Walmart公式APIを使用して商品情報を取得します。WALMART_API_KEY環境変数が必要です。
+                  APIキーが設定されていない場合、このプロバイダは無効化されます。
+                </p>
+              </div>
+              <div>
+                <h3 className="font-semibold mb-2">Amazon（公式API）</h3>
+                <p className="text-sm text-gray-600">
+                  Amazon Product Advertising API 5.0を使用して商品情報を取得します。
+                  AMAZON_ACCESS_KEY、AMAZON_SECRET_KEY、AMAZON_ASSOCIATE_TAG環境変数が必要です。
+                  APIキーが設定されていない場合、このプロバイダは無効化されます。
+                </p>
+              </div>
               {ENABLE_DEMO_PROVIDERS && (
                 <>
                   <div>

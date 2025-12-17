@@ -7,11 +7,13 @@ import (
 
 // ProductCandidate represents a product found during search
 type ProductCandidate struct {
-	Title    string
-	Brand    *string
-	Model    *string
-	ImageURL *string
-	Source   string
+	Title      string
+	Brand      *string
+	Model      *string
+	ImageURL   *string
+	Source     string
+	Identifier *string // Optional identifier (e.g., itemId for Walmart, ASIN for Amazon)
+	SourceURL  *string // Product URL from the source
 }
 
 // Provider interface for fetching product information
@@ -22,4 +24,6 @@ type Provider interface {
 	// FetchOffers fetches offers for a product
 	FetchOffers(ctx context.Context, product *models.Product) ([]*models.Offer, error)
 }
+
+
 

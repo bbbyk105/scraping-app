@@ -4,3 +4,5 @@ DROP INDEX IF EXISTS idx_offers_source;
 DROP INDEX IF EXISTS idx_offers_product_id;
 DROP TABLE IF EXISTS offers;
 
+
+

@@ -62,3 +62,5 @@ func (c *Calculator) ConvertToJPY(usdCents int) int {
 	return int(math.Round(jpyAmount))
 }
 
+
+

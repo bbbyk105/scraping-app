@@ -339,9 +339,9 @@ func (h *Handlers) FetchPrices(c *fiber.Ctx) error {
 		req.Source = "all"
 	}
 
-	if req.Source != "demo" && req.Source != "public_html" && req.Source != "live" && req.Source != "all" {
+	if req.Source != "demo" && req.Source != "public_html" && req.Source != "live" && req.Source != "walmart" && req.Source != "amazon" && req.Source != "all" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "invalid source. must be 'demo', 'public_html', 'live', or 'all'",
+			"error": "invalid source. must be 'demo', 'public_html', 'live', 'walmart', 'amazon', or 'all'",
 		})
 	}
 

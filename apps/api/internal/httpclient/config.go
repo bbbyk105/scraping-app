@@ -48,6 +48,14 @@ func LoadConfig() *Config {
 		RPS:   getFloatEnv("PROVIDER_RATE_LIMIT_LIVE_RPS", 1),
 		Burst: getIntEnv("PROVIDER_RATE_LIMIT_BURST", 2),
 	}
+	cfg.ProviderRateLimits["walmart"] = RateLimitConfig{
+		RPS:   getFloatEnv("PROVIDER_RATE_LIMIT_WALMART_RPS", 5),
+		Burst: getIntEnv("PROVIDER_RATE_LIMIT_BURST", 10),
+	}
+	cfg.ProviderRateLimits["amazon"] = RateLimitConfig{
+		RPS:   getFloatEnv("PROVIDER_RATE_LIMIT_AMAZON_RPS", 1),
+		Burst: getIntEnv("PROVIDER_RATE_LIMIT_BURST", 2),
+	}
 
 	// Default rate limit (fallback)
 	cfg.DefaultRateLimit = RateLimitConfig{

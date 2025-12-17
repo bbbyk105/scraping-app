@@ -14,3 +14,5 @@ CREATE INDEX idx_products_title ON products USING gin(to_tsvector('english', tit
 CREATE INDEX idx_products_brand ON products(brand);
 CREATE INDEX idx_products_created_at ON products(created_at);
 
+
+

@@ -84,12 +84,25 @@
 
 環境変数は現在 docker-compose.yml に直接設定されています。本番環境では、以下の環境変数を設定してください：
 
+**基本設定:**
+
 - `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`
 - `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`
 - `API_PORT`, `API_HOST`
 - `US_SHIP_MODE`, `SHIPPING_FEE_PERCENT`, `FX_USDJPY`
 - `USER_AGENT`
 - `NEXT_PUBLIC_API_URL` (フロントエンド用)
+
+**公式 API 設定（本番用）:**
+
+- `WALMART_API_KEY`: Walmart API キー
+- `AMAZON_ACCESS_KEY`, `AMAZON_SECRET_KEY`, `AMAZON_ASSOCIATE_TAG`: Amazon API 認証情報
+
+**開発用設定（本番では無効化推奨）:**
+
+- `ENABLE_DEMO_PROVIDERS`: 開発用プロバイダ（demo/public_html）を有効化（デフォルト: `false`）
+
+詳細は `docs/API_KEYS.md` を参照してください。
 
 ### 起動
 
@@ -111,8 +124,16 @@ docker-compose up --build
 
 **初回使用時**:
 
-1. まず `/admin/jobs` で価格更新ジョブを実行してデータを取得してください
-2. その後、`/search` で商品を検索できるようになります
+1. API キーを設定（`docs/API_KEYS.md` を参照）
+   - Walmart API: `WALMART_API_KEY` を設定
+   - Amazon API: `AMAZON_ACCESS_KEY`, `AMAZON_SECRET_KEY`, `AMAZON_ASSOCIATE_TAG` を設定
+2. `/admin/jobs` で価格更新ジョブを実行してデータを取得
+   - プロバイダを選択（Walmart / Amazon / All）
+   - 「価格更新ジョブを実行」ボタンをクリック
+3. 数秒〜数十秒待ってから `/search` で商品を検索
+4. 検索結果から商品を選択して `/compare` で価格比較
+
+**注意**: API キーが設定されていないプロバイダは自動的に無効化され、選択できません。
 
 ### マイグレーション
 
@@ -129,9 +150,11 @@ go run cmd/migrate/main.go down  # ロールバック
 ### 1. 価格データの更新（管理画面）
 
 1. ブラウザで `http://localhost:3000/admin/jobs` にアクセス
-2. 「価格更新ジョブを実行（自動判定）」ボタンをクリック
-   - バックエンドが有効になっているプロバイダ（開発環境なら demo/public_html/live、本番なら live のみ）を自動判定してジョブをキューに積みます
-3. 数秒〜数十秒待つと、各商品の `price_updated_at` が更新されます
+2. プロバイダを選択（Walmart / Amazon / All）
+3. 「価格更新ジョブを実行」ボタンをクリック
+   - 選択したプロバイダから商品情報を取得して DB に保存します
+   - API キーが設定されていないプロバイダは選択できません（無効化されています）
+4. 数秒〜数十秒待つと、各商品の `price_updated_at` が更新されます
 
 ### 2. 商品検索（キーワード / 型番 / JAN）
 
@@ -184,9 +207,31 @@ go run cmd/migrate/main.go down  # ロールバック
 
 現在実装されているプロバイダ：
 
-1. **demo**: モックデータを使用したテスト用プロバイダ
-2. **public_html**: `/samples` 配下の HTML ファイルから価格情報を抽出
+1. **walmart**: Walmart 公式 API を使用したプロバイダ（本番用）
+2. **amazon**: Amazon Product Advertising API 5.0 を使用したプロバイダ（本番用）
 3. **live**: 外部サイトからのライブ取得用プロバイダ（実装済み）
+4. **demo**: モックデータを使用したテスト用プロバイダ（開発用、`ENABLE_DEMO_PROVIDERS=true`で有効化）
+5. **public_html**: `/samples` 配下の HTML ファイルから価格情報を抽出（開発用、`ENABLE_DEMO_PROVIDERS=true`で有効化）
+
+### 公式 API プロバイダ（推奨）
+
+#### Walmart 公式 API
+
+Walmart 公式 API を使用して商品情報を取得します。
+
+- **環境変数**: `WALMART_API_KEY`（必須）
+- **設定方法**: `docs/API_KEYS.md` を参照
+- **レートリミット**: デフォルト 5 RPS（`PROVIDER_RATE_LIMIT_WALMART_RPS`で変更可能）
+
+#### Amazon Product Advertising API
+
+Amazon Product Advertising API 5.0 を使用して商品情報を取得します。
+
+- **環境変数**: `AMAZON_ACCESS_KEY`, `AMAZON_SECRET_KEY`, `AMAZON_ASSOCIATE_TAG`（すべて必須）
+- **設定方法**: `docs/API_KEYS.md` を参照
+- **レートリミット**: デフォルト 1 RPS（`PROVIDER_RATE_LIMIT_AMAZON_RPS`で変更可能）
+
+**重要**: API キーが設定されていない場合、該当プロバイダは自動的に無効化されます。
 
 ### Live Provider（実際のスクレイピング）
 
@@ -290,18 +335,76 @@ docker logs pricecompare-api -f | grep "HTTP request audit"
 - **設定方法**: 環境変数`ALLOW_LIVE_FETCH=true`で有効化
 - **注意**: `true`に設定する場合は、**自己責任で、許可されたサイトのみにアクセスすること**
 
+## 開発用プロバイダの無効化について
+
+本番環境では、開発用プロバイダ（demo/public_html）はデフォルトで無効化されています。
+
+- `ENABLE_DEMO_PROVIDERS=false`（デフォルト）: 開発用プロバイダは使用不可
+- `ENABLE_DEMO_PROVIDERS=true`: 開発用プロバイダを有効化（開発・テスト時のみ）
+
+本番環境では、公式 API プロバイダ（walmart/amazon）のみを使用することを推奨します。
+
 ## 今後の実装予定（TODO）
 
 - [ ] 画像検索の実装
 - [x] レートリミットの実装強化
 - [x] robots.txt チェック機能
-- [ ] 公式 API プロバイダの追加
+- [x] 公式 API プロバイダの追加（Walmart/Amazon）
+- [ ] 商品識別子（ASIN/UPC/GTIN 等）の自動保存と統合
 - [ ] キャッシュ戦略の改善
 - [ ] エラーハンドリングの強化
 - [ ] E2E テストの追加
 - [ ] CI/CD パイプライン
 - [ ] 監視とアラートの設定
-- [ ] live プロバイダの完全実装
+
+## 動作確認手順（5 分で完了）
+
+### 1. 環境変数の設定（API キーが無い場合でも動作確認可能）
+
+```bash
+# docker-compose.yml を編集してAPIキーを設定
+# または .env ファイルを作成
+```
+
+### 2. アプリケーションの起動
+
+```bash
+docker-compose up --build
+```
+
+### 3. ヘルスチェック
+
+```bash
+curl http://localhost:8080/health
+# 期待される結果: {"status":"ok"}
+```
+
+### 4. 価格更新ジョブの実行
+
+1. ブラウザで `http://localhost:3000/admin/jobs` にアクセス
+2. プロバイダを選択（API キーが設定されているプロバイダのみ選択可能）
+3. 「価格更新ジョブを実行」ボタンをクリック
+4. ジョブ ID が表示されることを確認
+
+### 5. 商品検索
+
+1. `http://localhost:3000/search` にアクセス
+2. 検索キーワードを入力（例: "headphones", "laptop"）
+3. 検索結果が表示されることを確認
+
+### 6. 価格比較
+
+1. 検索結果から商品をクリック
+2. `/compare` 画面でオファーが表示されることを確認
+3. ソート機能（総額が安い順、納期が早い順等）が動作することを確認
+
+### トラブルシューティング
+
+- **プロバイダが選択できない**: API キーが設定されていない可能性があります。ログを確認してください。
+- **商品が検索できない**: 価格更新ジョブを実行してデータを取得してください。
+- **エラーが発生する**: `docker logs pricecompare-api -f` でログを確認してください。
+
+詳細は `docs/OPERATION.md` を参照してください。
 
 ## ライセンス
 

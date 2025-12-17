@@ -43,3 +43,5 @@ ALTER TABLE offers
 CREATE INDEX idx_offers_price_updated_at ON offers(price_updated_at);
 
 
+
+

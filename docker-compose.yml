@@ -19,12 +19,13 @@ services:
   redis:
     image: redis:7-alpine
     container_name: pricecompare-redis
+    command: redis-server --requirepass password --bind 0.0.0.0 --protected-mode yes
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "password", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -45,6 +46,7 @@ services:
       POSTGRES_SSLMODE: disable
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      REDIS_PASSWORD: password
       ASYNQ_REDIS_ADDR: redis:6379
       US_SHIP_MODE: TABLE
       SHIPPING_FEE_PERCENT: 3.0
@@ -61,8 +63,19 @@ services:
       HTTP_MAX_RETRIES: "3"
       # Live Provider設定（実際のスクレイピング用）
       LIVE_PROVIDER_BASE_URL: "https://www.amazon.com/"
-      # 開発用プロバイダ（demo/public_html）を有効化
-      ENABLE_DEMO_PROVIDERS: "true"
+      # 開発用プロバイダ（demo/public_html）を有効化（本番では false に設定）
+      ENABLE_DEMO_PROVIDERS: "false"
+      # Walmart API設定
+      WALMART_API_KEY: "3757d8a512msh7e520efb6df3ad2p126487jsn78b7dbbf9124"
+      WALMART_API_BASE_URL: "https://walmart-data.p.rapidapi.com"
+      WALMART_API_HOST: "walmart-data.p.rapidapi.com"
+      WALMART_API_PATH: "/search"
+      # Amazon API設定
+      AMAZON_ACCESS_KEY: ""
+      AMAZON_SECRET_KEY: ""
+      AMAZON_ASSOCIATE_TAG: ""
+      AMAZON_API_ENDPOINT: "webservices.amazon.com"
+      AMAZON_API_REGION: "us-east-1"
     ports:
       - "8080:8080"
     depends_on:
@@ -90,8 +103,8 @@ services:
     container_name: pricecompare-web
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8080
-      # 開発用プロバイダ(demo/public_html)を UI に表示するかどうか
-      NEXT_PUBLIC_ENABLE_DEMO_PROVIDERS: "true"
+      # 開発用プロバイダ(demo/public_html)を UI に表示するかどうか（本番では false に設定）
+      NEXT_PUBLIC_ENABLE_DEMO_PROVIDERS: "false"
     ports:
       - "3000:3000"
     depends_on:
